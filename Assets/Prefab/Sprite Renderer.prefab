@@ -1,0 +1,129 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1012891008763794562
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1012891008763794563}
+  - component: {fileID: 1012891008763794620}
+  - component: {fileID: 1012891008763794621}
+  m_Layer: 5
+  m_Name: Sprite Renderer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1012891008763794563
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1012891008763794562}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 10, y: 10, z: 10}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1012891008763794620
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1012891008763794562}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 679b67e3d92594b44be1fa2b40c567b4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  frames:
+  - {fileID: 21300000, guid: 719814ff9e34f4a0081c0af6f584f6a1, type: 3}
+  - {fileID: 21300000, guid: 719814ff9e34f4a0081c0af6f584f6a1, type: 3}
+  - {fileID: 21300000, guid: d7d1e78130bf349bd84fd43a13b4b5c5, type: 3}
+  - {fileID: 21300000, guid: 2759bdc6ed54847bd9002862a376f572, type: 3}
+  - {fileID: 21300000, guid: 16f0a3206dd7d49c681b53be9611cf97, type: 3}
+  - {fileID: 21300000, guid: a6517faa704424efca54b0c7ed0af55e, type: 3}
+  - {fileID: 21300000, guid: 5ed658b8e63f844e49093b043b54b3a5, type: 3}
+  - {fileID: 21300000, guid: 4e852bdd076164731af77b66752f1150, type: 3}
+  - {fileID: 21300000, guid: 0a24be322fa714b2aab3e1190de66c79, type: 3}
+  - {fileID: 21300000, guid: 568bd092a6634427cbf4b5c92d07b824, type: 3}
+  - {fileID: 21300000, guid: a23aa02a3c9e84119b12b6c59aab4bfd, type: 3}
+  - {fileID: 21300000, guid: 1ed5726a80037421fa0b9bc1bc9aeb5f, type: 3}
+  - {fileID: 21300000, guid: 8464d575abe924780b1ae49051b805cc, type: 3}
+  - {fileID: 21300000, guid: 7e07087061fa241eaa2c172513cc60ce, type: 3}
+  - {fileID: 21300000, guid: 91f24ee9da63746858627b9810245926, type: 3}
+  - {fileID: 21300000, guid: 10670436ebae44575839d15792f5a017, type: 3}
+  - {fileID: 21300000, guid: cf147262e1d4c408cbf3eaa615a7a56d, type: 3}
+  - {fileID: 21300000, guid: 44ff043e84c8e4b5baa22394fb240ed4, type: 3}
+  - {fileID: 21300000, guid: a712610dedc6b49b1a741210e69c1af6, type: 3}
+  - {fileID: 21300000, guid: ba095a4e7ade04b7492530672f860d4c, type: 3}
+  - {fileID: 21300000, guid: a1e799033a3ca4f9889cb60182988334, type: 3}
+  - {fileID: 21300000, guid: 117e8991cc418414f8eb484ffd767f74, type: 3}
+  frameRate: 0.1
+  playOnStart: 1
+--- !u!212 &1012891008763794621
+SpriteRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1012891008763794562}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 0
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_Sprite: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 1, y: 1}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 0
+  m_MaskInteraction: 0
+  m_SpriteSortPoint: 0

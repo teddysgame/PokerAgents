@@ -1,0 +1,480 @@
+// Copyright 2022 Niantic, Inc. All Rights Reserved.
+
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
+
+//migrate from p2p game logic
+using Niantic.ARDK.AR;
+using Niantic.ARDK.AR.Configuration;
+using Niantic.ARDK.AR.Networking;
+using Niantic.ARDK.Networking;
+using Niantic.ARDK.Networking.MultipeerNetworkingEventArgs;
+using Niantic.ARDK.Utilities.BinarySerialization;
+using System.IO;
+using System.Text;
+
+using Niantic.ARDK.Utilities.Input.Legacy;
+
+namespace Niantic.LightshipHub.Templates
+{
+    public class PhysicsSceneController : MonoBehaviour
+    {
+        private List<GameObject> objectHolders = new List<GameObject>();
+        //cool down launching time to prevent spam
+        private bool isCooling = false;
+        public int cooltime = 3;
+
+        //to calculate launch trajectory
+        private Vector2 startPoint;
+        private Vector2 endPoint;
+        private bool isTouchingButton = false;
+
+        //for canvas card UI
+        public GameObject cardHolding;
+
+        //to access the gamemanager
+        public GameplayController gameplayController;
+
+        //for gameplay
+        bool ignored = false;
+
+        //==networking essentials
+
+        // A constant representing a position event tag.
+        private const uint POSITION_EVENT = 1;
+
+        // The world tracking configuration, created during OnEnable().
+        private IARWorldTrackingConfiguration _arWorldTrackingConfiguration;
+
+        // The multipeer networking, created during OnEnable().
+        private IMultipeerNetworking _multipeerNetworking;
+
+        // The AR session, created during OnEnable().
+        private IARSession _arSession;
+
+        // The AR networking session, created during OnEnable().
+        private IARNetworking _arNetworkingSession;
+
+        // The session identifier.
+        //private readonly byte[] _sessionID = Encoding.UTF8.GetBytes("SampleSessionID");
+
+        // A dictionary list of the players and their car GameObjects.
+        private Dictionary<System.Guid, GameObject> _players = new Dictionary<System.Guid, GameObject>();
+
+        private void OnEnable()
+        {
+            // First, create and configure the world tracking configuration...
+            _arWorldTrackingConfiguration = ARWorldTrackingConfigurationFactory.Create();
+            _arWorldTrackingConfiguration.WorldAlignment = WorldAlignment.Gravity;
+            _arWorldTrackingConfiguration.IsLightEstimationEnabled = true;
+            _arWorldTrackingConfiguration.PlaneDetection = PlaneDetection.Horizontal;
+            _arWorldTrackingConfiguration.IsAutoFocusEnabled = true;
+            _arWorldTrackingConfiguration.IsDepthEnabled = false;
+            _arWorldTrackingConfiguration.IsSharedExperienceEnabled = true;
+
+            // ...next, create the multipeer networking...
+            _multipeerNetworking = MultipeerNetworkingFactory.Create();
+
+            // ...then, create the AR session, passing in the stage identifier...
+            _arSession = ARSessionFactory.Create(_multipeerNetworking.StageIdentifier);
+
+            // ...next, create the AR networking session, passing in the AR session and the multipeer networking...
+            _arNetworkingSession = ARNetworkingFactory.Create(_arSession, _multipeerNetworking);
+
+            // ...finally, subscribe callback methods
+            _multipeerNetworking.Connected += OnConnected;
+            _multipeerNetworking.ConnectionFailed += OnConnectionFailed;
+            _multipeerNetworking.Disconnected += OnDisconnected;
+            _multipeerNetworking.PeerAdded += OnPeerAdded;
+            _multipeerNetworking.PeerRemoved += OnPeerRemoved;
+            _multipeerNetworking.PeerDataReceived += OnPeerDataReceived;
+        }
+
+        private void OnDisable()
+        {
+            // Leave the networking session...
+            LeaveNetworkingSession();
+
+            // ...unsubscribe callback methods...
+            _multipeerNetworking.Connected -= OnConnected;
+            _multipeerNetworking.ConnectionFailed -= OnConnectionFailed;
+            _multipeerNetworking.Disconnected -= OnDisconnected;
+            _multipeerNetworking.PeerAdded -= OnPeerAdded;
+            _multipeerNetworking.PeerRemoved -= OnPeerRemoved;
+            _multipeerNetworking.PeerDataReceived -= OnPeerDataReceived;
+
+            // ...and dispose of the objects.
+            _arWorldTrackingConfiguration.Dispose();
+            _multipeerNetworking.Dispose();
+            _arSession.Dispose();
+            _arNetworkingSession.Dispose();
+        }
+
+        private void OnApplicationQuit()
+        {
+            // Leave the networking session.
+            LeaveNetworkingSession();
+        }
+        //==end of networking essentials
+
+        private void Start()
+        {
+            // Run the AR networking session and join with the session ID...
+            _arNetworkingSession.ARSession.Run(_arWorldTrackingConfiguration);
+
+            //string _sessionID = GenerateSessionID();
+            string _sessionID = "ABC123";
+            _arNetworkingSession.Networking.Join(Encoding.UTF8.GetBytes(_sessionID));
+
+            //preload the game
+            SetObjectHolders();
+        }
+
+        public string GenerateSessionID()
+        {
+            string builder = "";
+
+            for (int i = 0; i < 6; ++i)
+            {
+                int r = UnityEngine.Random.Range(0, 26);
+                builder += (char)('A' + r);
+            }
+
+            return builder;
+        }
+
+        private void Update()
+        {
+            if (PlatformAgnosticInput.touchCount <= 0) return;
+
+            var touch = PlatformAgnosticInput.GetTouch(0);
+
+            //if (objCount <= maxObjects && !isCooling)
+            if (!isCooling)
+            {
+                if ((Input.GetMouseButtonDown(0) || touch.phase == TouchPhase.Began))
+                {
+                    //check if hitting UI elements
+                    if (IsTouchOverUI(touch.position))
+                    {
+                        // Touch is hitting UI elements (e.g., button)
+                        isTouchingButton = true;
+                    }
+                    else
+                    {
+                        // Button press or touch began and not hitting UI elements
+                        isTouchingButton = false;
+                        StoreScreenPoint(touch.position);
+                    }
+                }
+                else if ((Input.GetMouseButtonUp(0) || touch.phase == TouchPhase.Ended))
+                {
+                    if (!isTouchingButton)
+                    {
+                        // Button release or touch ended and not hitting UI elements
+                        CalculateLaunchSpeed(touch.position);
+                        //Debug.Log("hit");
+                    }
+                    else
+                    {
+                        // Touch was over a button, handle button press
+                        HandleButtonPress(touch.position);
+                    }
+                }
+            }
+        }
+
+        public void print()
+		{
+            Debug.Log("test button");
+		}
+
+        private void HandleButtonPress(Vector2 touchPosition)
+        {
+            // Handle button press logic
+            // You can use the EventSystem to find the UI element that was pressed
+            PointerEventData eventData = new PointerEventData(EventSystem.current);
+            eventData.position = touchPosition;
+
+            var results = new List<RaycastResult>();
+            EventSystem.current.RaycastAll(eventData, results);
+
+            if (results.Count > 0)
+            {
+                // Get the button that was pressed
+                var button = results[0].gameObject.GetComponent<Button>();
+
+                if (button != null)
+                {
+                    // Handle button press
+                    button.onClick.Invoke();
+                }
+            }
+        }
+
+        private bool IsTouchOverUI(Vector2 touchPosition)
+        {
+            // Check if the touch position is over any UI elements
+            PointerEventData eventData = new PointerEventData(EventSystem.current);
+            eventData.position = touchPosition;
+
+            var results = new List<RaycastResult>();
+            EventSystem.current.RaycastAll(eventData, results);
+
+            return results.Count > 0;
+        }
+
+        void StoreScreenPoint(Vector2 point)
+        {
+            startPoint = point;
+        }
+
+        void CalculateLaunchSpeed(Vector2 point)
+        {
+            endPoint = point;
+
+            // Calculate the distance between the start and end points
+            float swipeDistance = Mathf.Abs(endPoint.y - startPoint.y);
+
+            // Calculate the horizontal distance between the start and end points
+            float horizontalDistance = endPoint.x - startPoint.x;
+
+            // Use the horizontal distance as the movement value
+            float movementValue = horizontalDistance;
+
+            // Use the swipe distance as the launch speed
+            //divide by 100 cuz of the speed
+            float launchSpeed = swipeDistance/100;
+
+            LaunchBegan(launchSpeed, movementValue);
+            //Debug.Log("Launch Speed: " + launchSpeed);
+            //Debug.Log("Launch spin: " + movementValue);
+
+            //get the position of the camera
+            Vector3 cameraPosition = Camera.main.transform.position;
+
+            BroadcastCarPosition(cameraPosition, launchSpeed, movementValue);
+        }
+
+        private void LaunchBegan(float launchSpeed, float movementValue)
+        {
+            GameObject objectHolder = ActivateOneOH();
+            LaunchObjectHolder(objectHolder, launchSpeed, movementValue);
+
+            //for limiting spawn
+            //objCount++;
+
+            //this is to enable cool down for launching so players do not spam launch
+            isCooling = true;
+            StartCoroutine(CoolDownSpawn());
+
+
+            //StartCoroutine(DeactivateObject(objectHolder));
+        }
+
+        private void SetObjectHolders()
+        {
+            //for (int i = 0; i < maxObjects / 3; i++)
+            for (int i = 0; i < 1; i++)
+            {
+                foreach (Transform child in gameObject.transform)
+                {
+                    if (child.gameObject.name == "PreloadManager") continue;
+                    if (child.gameObject.activeSelf) child.gameObject.SetActive(false);
+
+                    GameObject newObj = Instantiate(child.gameObject);
+                    var cursor = newObj.transform.Find("cursor");
+                    if (cursor != null) Destroy(cursor.gameObject);
+                    newObj.SetActive(false);
+                    objectHolders.Add(newObj.gameObject);
+                }
+            }
+        }
+
+        private GameObject ActivateOneOH()
+        {
+            for (int i = 0; i < objectHolders.Count; i++)
+            {
+                int rd = 0;
+                if (!objectHolders[rd].activeSelf) return objectHolders[rd];
+            }
+            return objectHolders[0];
+        }
+
+        private void LaunchObjectHolder(GameObject obj, float launchSpeed, float movementValue)
+        {
+            cardHolding.SetActive(false);
+            obj.TryGetComponent<PhysicsController>(out PhysicsController physicsController);
+            physicsController.Launch(launchSpeed, movementValue, null, Camera.main.transform.forward);
+
+            //if (gameplayController.startingPlayer == "Player 1")
+            //{
+            //    //enable to take damage
+            //    physicsController.GetComponentInChildren<AboveAttack>().resetAttackBool();
+            //}
+            physicsController.GetComponentInChildren<AboveAttack>().resetAttackBool();
+            if (gameplayController.startingPlayer == "Player 1" && !ignored)
+            {
+                physicsController.GetComponentInChildren<AboveAttack>().EndTurn();
+                ignored = true;
+            }
+
+        }
+        private IEnumerator DeactivateObject(GameObject obj)
+        {
+            yield return new WaitForSeconds(cooltime);
+            //reset the bool
+            obj.GetComponentInChildren<CardDisplay>().changeBool();
+
+            //setactive the object
+            obj.SetActive(false);
+
+            //limit object is disabled
+            //objCount--;
+
+            //activate the card on the canvas to show the player card is ready to throw
+            cardHolding.SetActive(true);
+        }
+
+        private IEnumerator CoolDownSpawn()
+        {
+            yield return new WaitForSeconds(cooltime);
+            isCooling = false;
+        }
+
+        // Broadcasts the values of launch speed and movement value
+        private void BroadcastCarPosition(Vector3 position, float launchSpeed, float movementValue)
+        {
+            // First, create a new memory stream object...
+            MemoryStream memoryStream = new MemoryStream();
+            MemoryStream memoryStream1 = new MemoryStream();
+            MemoryStream memoryStream2 = new MemoryStream();
+
+            // ...then, serialize the position into the memory stream...
+            GlobalSerializer.Serialize(memoryStream, position);
+            GlobalSerializer.Serialize(memoryStream1, launchSpeed);
+            GlobalSerializer.Serialize(memoryStream2, movementValue);
+
+            // ...next, store the memory stream as a byte array...
+            byte[] data = memoryStream.ToArray();
+
+            // ...and finally, send the byte array to all peers on the network.
+            _arNetworkingSession.Networking.SendDataToPeers(tag: POSITION_EVENT,
+                                                            data: data,
+                                                            peers: _arNetworkingSession.Networking.OtherPeers,
+                                                            TransportType.ReliableUnordered);
+        }
+
+        // Leaves the multiplayer session, if applicable.
+        private void LeaveNetworkingSession()
+        {
+            if (_multipeerNetworking.IsConnected) _multipeerNetworking.Leave();
+        }
+
+        // Subscribes to the _multipeerNetworking.Connected event handler during OnEnable().
+        private void OnConnected(ConnectedArgs args)
+        {
+            Debug.Log("Lightship: ---P2PGameLogic.OnConnected()---");
+            Debug.Log("Lightship: args.IsHost = " + args.IsHost);
+        }
+
+        // Subscribes to the _multipeerNetworking.ConnectionFailed event handler during OnEnable().
+        private void OnConnectionFailed(ConnectionFailedArgs args)
+        {
+            Debug.Log("Lightship: ---P2PGameLogic.OnConnectionFailed()---");
+            Debug.Log("Lightship: args.ErrorCode = " + args.ErrorCode);
+        }
+
+        // Subscribes to the _multipeerNetworking.Disconnected event handler during OnEnable().
+        private void OnDisconnected(DisconnectedArgs args)
+        {
+            Debug.Log("Lightship: ---P2PGameLogic.OnDisconnected()---");
+        }
+
+        // Subscribes to the _multipeerNetworking.PeerAdded event handler during OnEnable().
+        private void OnPeerAdded(PeerAddedArgs args)
+        {
+            Debug.Log("Lightship: ---P2PGameLogic.OnPeerAdded()---");
+            Debug.Log("Lightship: args.Peer = " + args.Peer);
+
+            // Broadcast this car's position when a peer joins the session.
+            //if (_localCar != null)
+            //{
+            //    BroadcastCarPosition(_localCar.transform.position);
+            //}
+        }
+
+        // Subscribes to the _multipeerNetworking.PeerRemoved event handler during OnEnable().
+        private void OnPeerRemoved(PeerRemovedArgs args)
+        {
+            Debug.Log("Lightship: ---P2PGameLogic.OnPeerRemoved()---");
+            Debug.Log("Lightship: args.Peer = " + args.Peer);
+
+            // If the dictionary of players contains the peer that's been removed...
+            if (_players.ContainsKey(args.Peer.Identifier))
+            {
+                // ...get a reference to that player's car...
+                //GameObject peerCar;
+                //if (_players.TryGetValue(args.Peer.Identifier, out peerCar))
+                //{
+                //    // ...destroy the car...
+                //    Destroy(peerCar);
+                //}
+                // ...and remove that player from the dictionary.
+                _players.Remove(args.Peer.Identifier);
+            }
+        }
+
+        // Subscribes to the _multipeerNetworking.PeerDataReceived event handler during OnEnable().
+        private void OnPeerDataReceived(PeerDataReceivedArgs args)
+        {
+            Debug.Log("Lightship: ---P2PGameLogic.OnPeerDataReceived()---");
+            Debug.Log("Lightship: args.Peer = " + args.Peer);
+            Debug.Log("Lightship: args.Tag = " + args.Tag);
+            Debug.Log("Lightship: args.DataLength = " + args.DataLength);
+            Debug.Log("Lightship: args.TransportType = " + args.TransportType);
+
+            // First, copy the argument data into a memory stream...
+            MemoryStream memoryStream = new MemoryStream(args.CopyData());
+            MemoryStream memoryStream1 = new MemoryStream(args.CopyData());
+            MemoryStream memoryStream2 = new MemoryStream(args.CopyData());
+
+            // ...then, take note of the player identifier...
+            System.Guid playerIdentifier = args.Peer.Identifier;
+
+            switch (args.Tag)
+            {
+                // In the case of a position event...
+                case POSITION_EVENT:
+
+                    // ...deserialize the position from the memory stream...
+                    Vector3 position = (Vector3)GlobalSerializer.Deserialize(memoryStream);
+                    float launchSpeed = (float)GlobalSerializer.Deserialize(memoryStream1);
+                    float movementValue = (float)GlobalSerializer.Deserialize(memoryStream2);
+
+                    // ...and if the dictionary already contains the player...
+                    if (_players.ContainsKey(playerIdentifier))
+                    {
+                        // ...then set the player's car's destination.
+                        //_players[playerIdentifier].GetComponent<CarScript>().SetDestination(position);
+                        GameObject objectHolder = ActivateOneOH();
+                        _players[playerIdentifier].GetComponent<PhysicsSceneController>().LaunchObjectHolder(objectHolder, launchSpeed, movementValue);
+                        _players[playerIdentifier].GetComponentInChildren<PhysicsController>().Launch(launchSpeed, movementValue, null, position);
+                    }
+                    // ...but if the dictionary does not contain the player...
+                    else
+                    {
+                        // ...then create a car for the remote player...
+                        //GameObject remoteCar = CreateCar(position);
+
+                        // ...and add it to the dictionary.
+                        //_players.Add(playerIdentifier, remoteCar);
+                    }
+                    break;
+            }
+        }
+    }
+}

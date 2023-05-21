@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b847f63d86bd564c91a84716608fe20, type: 3}
+  m_Name: Palkia
+  m_EditorClassIdentifier: 
+  name: Palkia
+  description: A white boss
+  artwork: {fileID: 21300000, guid: fca98e9315ba00f449fc2c6d2843f2dc, type: 3}
+  manacost: 0
+  attack: 3
+  health: 5
